@@ -20,7 +20,6 @@
         timeout(1000).then((value) => {
             $parent.append($("<div>" + value + "</div>"));
             $parent.append($("<br/>"));
-            $parent.append($("<br/>"));
         });
 
         console.log(PromisePolyfill.prototype.constructor);
@@ -57,6 +56,160 @@
         // promise2.then(function (value) {
         //     assert(value === 'hello world'); // true
         // });
+        
+        function getURL(URL) {
+            return new Promise(function (resolve, reject) {
+                var req = new XMLHttpRequest();
+                req.open('GET', URL, true);
+                req.onload = function () {
+                    if (req.status === 200) {
+                        resolve(req.responseText);
+                    } else {
+                        reject(new Error(req.statusText));
+                    }
+                };
+                req.onerror = function () {
+                    reject(new Error(req.statusText));
+                };
+                req.send();
+            });
+        }
+        // 运行示例
+        var URL = "http://httpbin.org/get";
+        getURL(URL).then(function onFulfilled(value) {
+            $parent.append($("<div>" + value + "</div>"));
+            $parent.append($("<br/>"));
+        }).catch(function onRejected(error) {
+            $parent.append($("<div>" + error + "</div>"));
+            $parent.append($("<br/>"));
+        });
+
+        var URL = "http://httpbin.org/status/500";
+        getURL(URL).then(function onFulfilled(value) {
+            $parent.append($("<div>" + value + "</div>"));
+            $parent.append($("<br/>"));
+        }).catch(function onRejected(error) {
+            $parent.append($("<div>" + error + "</div>"));
+            $parent.append($("<br/>"));
+        });
+
+        function taskA() {
+            $parent.append($("<div>" + "Task A" + "</div>"));
+            $parent.append($("<br/>"));
+        }
+
+        function taskB() {
+            $parent.append($("<div>" + "Task B" + "</div>"));
+            $parent.append($("<br/>"));
+        }
+
+        function onRejected(error) {
+            $parent.append($("<div>" + "Catch Error: A or B" + error + "</div>"));
+            $parent.append($("<br/>"));
+        }
+
+        function finalTask() {
+            $parent.append($("<div>" + "Final Task" + "</div>"));
+            $parent.append($("<br/>"));
+        }
+
+        var promise = Promise.resolve();
+        promise
+            .then(taskA)
+            .then(taskB)
+            .catch(onRejected)
+            .then(finalTask);
+
+        function taskA() {
+            console.log("Task A");
+            throw new Error("throw Error @ Task A")
+        }
+
+        function taskB() {
+            console.log("Task B"); // 不会被调用
+        }
+
+        function onRejected(error) {
+            console.log(error); // => "throw Error @ Task A"
+        }
+
+        function finalTask() {
+            console.log("Final Task");
+        }
+
+        var promise = Promise.resolve();
+        promise
+            .then(taskA)
+            .then(taskB)
+            .catch(onRejected)
+            .then(finalTask);
+
+
+        function getURLCallback(URL, callback) {
+            var req = new XMLHttpRequest();
+            req.open('GET', URL, true);
+            req.onload = function () {
+                if (req.status === 200) {
+                    callback(null, req.responseText);
+                } else {
+                    callback(new Error(req.statusText), req.response);
+                }
+            };
+            req.onerror = function () {
+                callback(new Error(req.statusText));
+            };
+            req.send();
+        }
+        // <1> 对JSON数据进行安全的解析
+        function jsonParse(callback, error, value) {
+            if (error) {
+                callback(error, value);
+            } else {
+                try {
+                    var result = JSON.parse(value);
+                    callback(null, result);
+                } catch (e) {
+                    callback(e, value);
+                }
+            }
+        }
+        // <2> 发送XHR请求
+        var request = {
+            comment: function getComment(callback) {
+                return getURLCallback('http://azu.github.io/promises-book/json/comment.json', jsonParse.bind(
+                    null, callback));
+            },
+            people: function getPeople(callback) {
+                return getURLCallback('http://azu.github.io/promises-book/json/people.json', jsonParse.bind(
+                    null, callback));
+            }
+        };
+        // <3> 启动多个XHR请求，当所有请求返回时调用callback
+        function allRequest(requests, callback, results) {
+            if (requests.length === 0) {
+                return callback(null, results);
+            }
+            var req = requests.shift();
+            req(function (error, value) {
+                if (error) {
+                    callback(error, value);
+                } else {
+                    results.push(value);
+                    allRequest(requests, callback, results);
+                }
+            });
+        }
+
+        function main(callback) {
+            allRequest([request.comment, request.people], callback, []);
+        }
+        // 运行的例子
+        main(function (error, results) {
+            if (error) {
+                return console.error(error);
+            }
+            console.log(results);
+        });
     </script>
 </body>
 
