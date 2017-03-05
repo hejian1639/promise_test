@@ -16,10 +16,11 @@
             });
         }
 
+        var $parent = $("body"); // 获取<ul>节点。<li>的父节点
         timeout(1000).then((value) => {
-            var $parent = $("body"); // 获取<ul>节点。<li>的父节点
             $parent.append($("<div>" + value + "</div>"));
-            console.log(value);
+            $parent.append($("<br/>"));
+            $parent.append($("<br/>"));
         });
 
         console.log(PromisePolyfill.prototype.constructor);
@@ -32,8 +33,15 @@
             resolve(p1);
         })
 
-        p2.then(result => console.log(result))
-            .catch(error => console.log(error));
+        p2.then(result => {
+                $parent.append($("<div>" + result + "</div>"));
+                $parent.append($("<br/>"))
+            })
+            .catch(error => {
+                $parent.append($("<div>" + error + "</div>"));
+                $parent.append($("<br/>"))
+            });
+
 
         console.log('p2.then');
 
