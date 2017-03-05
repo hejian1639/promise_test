@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AMD Promise Tests</title>
+</head>
+
+<body>
+    <script src="jquery.js"></script>
+    <script src="promise.js"></script>
+    <script>
+        var $parent = $("body"); // 获取<ul>节点。<li>的父节点
+
+        function getURL(URL) {
+            return new Promise(function (resolve, reject) {
+                var req = new XMLHttpRequest();
+                req.open('GET', URL, true);
+                req.onload = function () {
+                    if (req.status === 200) {
+                        resolve(req.responseText);
+                    } else {
+                        reject(new Error(req.statusText));
+                    }
+                };
+                req.onerror = function () {
+                    reject(new Error(req.statusText));
+                };
+                req.send();
+            });
+        }
+        // 运行示例
+        var URL = "http://httpbin.org/get";
+        getURL(URL).then(function onFulfilled(value) {
+            $parent.append($("<div></div>").text(value));
+            console.log(value);
+        }).catch(function onRejected(error) {
+            console.error(error);
+        });
+    </script>
+</body>
+
+</html>
