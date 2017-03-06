@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AMD Promise Tests</title>
+</head>
+
+<body>
+    <script src="jquery.js"></script>
+    <script src="promise.js"></script>
+    <script>
+        function asyncFunction() {
+
+            return new Promise(function (resolve, reject) {
+                setTimeout(function () {
+                    resolve('Async Hello world');
+                }, 16);
+            });
+        }
+
+        asyncFunction().then(function (value) {
+            console.log(value);    // => 'Async Hello world'
+        }).catch(function (error) {
+            console.log(error);
+        });
+    </script>
+</body>
+
+</html>
