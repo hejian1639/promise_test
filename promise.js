@@ -111,23 +111,53 @@ http://yuilibrary.com/license/
         then: function (callback, errback) {
             // using this.constructor allows for customized promises to be
             // returned instead of plain ones
-            var resolve, reject,
-                promise = new this.constructor(function (res, rej) {
-                    resolve = res;
-                    reject = rej;
-                });
+            var resolve, reject;
+            var promise = new Promise(function (res, rej) {
+                resolve = res;
+                reject = rej;
+            });
+
+            function makeCallback(promise, resolve, reject, callback) {
+                // callbacks and errbacks only get one argument
+                return function (valueOrReason) {
+                    var result;
+
+                    // Promises model exception handling through callbacks
+                    // making both synchronous and asynchronous errors behave
+                    // the same way
+                    try {
+                        // Use the argument coming in to the callback/errback from the
+                        // resolution of the parent promise.
+                        // The function must be called as a normal function, with no
+                        // special value for |this|, as per Promises A+
+                        result = callback(valueOrReason);
+                    } catch (e) {
+                        // calling return only to stop here
+                        reject(e);
+                        return;
+                    }
+
+                    if (result === promise) {
+                        reject(new TypeError('Cannot resolve a promise with itself'));
+                        return;
+                    }
+
+                    resolve(result);
+                };
+            };
+
 
             this._resolver._addCallbacks(
                 typeof callback === 'function' ?
-                    Promise._makeCallback(promise, resolve, reject, callback) : resolve,
+                makeCallback(promise, resolve, reject, callback) : resolve,
                 typeof errback === 'function' ?
-                    Promise._makeCallback(promise, resolve, reject, errback) : reject
+                makeCallback(promise, resolve, reject, errback) : reject
             );
 
             return promise;
         },
 
-        /*
+        /** 
         A shorthand for `promise.then(undefined, callback)`.
 
         Returns a new promise and the error callback gets the same treatment as in
@@ -139,51 +169,12 @@ http://yuilibrary.com/license/
                             rejected
         @return {Promise} A new promise modified by the behavior of the error
                             callback
-        */
+        **/
         'catch': function (errback) {
             return this.then(undefined, errback);
         }
     });
 
-    /**
-    Wraps the callback in another function to catch exceptions and turn them
-    into rejections.
-
-    @method _makeCallback
-    @param {Promise} promise Promise that will be affected by this callback
-    @param {Function} fn Callback to wrap
-    @return {Function}
-    @static
-    @private
-    **/
-    Promise._makeCallback = function (promise, resolve, reject, fn) {
-        // callbacks and errbacks only get one argument
-        return function (valueOrReason) {
-            var result;
-
-            // Promises model exception handling through callbacks
-            // making both synchronous and asynchronous errors behave
-            // the same way
-            try {
-                // Use the argument coming in to the callback/errback from the
-                // resolution of the parent promise.
-                // The function must be called as a normal function, with no
-                // special value for |this|, as per Promises A+
-                result = fn(valueOrReason);
-            } catch (e) {
-                // calling return only to stop here
-                reject(e);
-                return;
-            }
-
-            if (result === promise) {
-                reject(new TypeError('Cannot resolve a promise with itself'));
-                return;
-            }
-
-            resolve(result);
-        };
-    };
 
     /*
     Ensures that a certain value is a promise. If it is not a promise, it wraps it
@@ -205,7 +196,7 @@ http://yuilibrary.com/license/
         }
         /*jshint newcap: false */
         return new this(function (resolve) {
-        /*jshint newcap: true */
+            /*jshint newcap: true */
             resolve(value);
         });
     };
@@ -222,14 +213,14 @@ http://yuilibrary.com/license/
     Promise.reject = function (reason) {
         /*jshint newcap: false */
         var promise = new this(function () {});
-       /*jshint newcap: true */
+        /*jshint newcap: true */
 
-       // Do not go through resolver.reject() because an immediately rejected promise
-       // always has no callbacks which would trigger an unnecessary warning
-       promise._resolver._result = reason;
-       promise._resolver._status = 'rejected';
+        // Do not go through resolver.reject() because an immediately rejected promise
+        // always has no callbacks which would trigger an unnecessary warning
+        promise._resolver._result = reason;
+        promise._resolver._status = 'rejected';
 
-       return promise;
+        return promise;
     };
 
     /*
@@ -252,9 +243,9 @@ http://yuilibrary.com/license/
             }
 
             var remaining = values.length,
-                i         = 0,
-                length    = values.length,
-                results   = [];
+                i = 0,
+                length = values.length,
+                results = [];
 
             function oneDone(index) {
                 return function (value) {
@@ -295,7 +286,7 @@ http://yuilibrary.com/license/
                 reject(new TypeError('Promise.race expects an array of values or promises'));
                 return;
             }
-            
+
             // just go through the list and resolve and reject at the first change
             // This abuses the fact that calling resolve/reject multiple times
             // doesn't change the state of the returned promise
@@ -316,10 +307,14 @@ http://yuilibrary.com/license/
     **/
     /* istanbul ignore next */
     Promise.async = typeof setImmediate !== 'undefined' ?
-                        function (fn) {setImmediate(fn);} :
-                    typeof process !== 'undefined' && process.nextTick ?
-                        process.nextTick :
-                    function (fn) {setTimeout(fn, 0);};
+        function (fn) {
+            setImmediate(fn);
+        } :
+        typeof process !== 'undefined' && process.nextTick ?
+        process.nextTick :
+        function (fn) {
+            setTimeout(fn, 0);
+        };
 
     /**
     Represents an asynchronous operation. Provides a
@@ -482,10 +477,12 @@ http://yuilibrary.com/license/
         @private
         **/
         _unwrap: function (value) {
-            var self = this, unwrapped = false, then;
+            var self = this,
+                unwrapped = false,
+                then;
 
             if (!value || (typeof value !== 'object' &&
-                typeof value !== 'function')) {
+                    typeof value !== 'function')) {
                 self.fulfill(value);
                 return;
             }
@@ -528,7 +525,7 @@ http://yuilibrary.com/license/
         **/
         _addCallbacks: function (callback, errback) {
             var callbackList = this._callbacks,
-                errbackList  = this._errbacks;
+                errbackList = this._errbacks;
 
             // Because the callback and errback are represented by a Resolver, it
             // must be fulfilled or rejected to propagate through the then() chain.
@@ -588,4 +585,3 @@ http://yuilibrary.com/license/
     return Promise;
 
 }));
-
