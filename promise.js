@@ -60,7 +60,8 @@ http://yuilibrary.com/license/
             promise. Receives `resolve` and `reject` functions as parameters.
             This function is called synchronously.
     **/
-    function Promise(fn) {
+    function Promise(fn, name) {
+        this._name = name;
         if (!(this instanceof Promise)) {
             throw new TypeError(this + 'is not a promise');
         }
@@ -76,7 +77,7 @@ http://yuilibrary.com/license/
         @property _resolver
         @type Object
         @private
-        */
+        **/
         this._resolver = resolver;
 
         try {
@@ -115,7 +116,7 @@ http://yuilibrary.com/license/
             var promise = new Promise(function (res, rej) {
                 resolve = res;
                 reject = rej;
-            });
+            }, 'then');
 
             function makeCallback(promise, resolve, reject, callback) {
                 // callbacks and errbacks only get one argument
@@ -176,7 +177,7 @@ http://yuilibrary.com/license/
     });
 
 
-    /*
+    /**
     Ensures that a certain value is a promise. If it is not a promise, it wraps it
     in one.
 
@@ -189,7 +190,7 @@ http://yuilibrary.com/license/
     @param {Any} Any object that may or may not be a promise
     @return {Promise}
     @static
-    */
+    **/
     Promise.resolve = function (value) {
         if (value && value.constructor === this) {
             return value;
@@ -198,7 +199,7 @@ http://yuilibrary.com/license/
         return new this(function (resolve) {
             /*jshint newcap: true */
             resolve(value);
-        });
+        }, 'resolve');
     };
 
     /*
@@ -212,7 +213,7 @@ http://yuilibrary.com/license/
     */
     Promise.reject = function (reason) {
         /*jshint newcap: false */
-        var promise = new this(function () {});
+        var promise = new this(function () {}, 'reject');
         /*jshint newcap: true */
 
         // Do not go through resolver.reject() because an immediately rejected promise
@@ -425,7 +426,7 @@ http://yuilibrary.com/license/
             }
         },
 
-        /*
+        /**
         Given a certain value A passed as a parameter, this method resolves the
         promise to the value A.
 
@@ -450,7 +451,7 @@ http://yuilibrary.com/license/
 
         @method resolve
         @param [Any] value A regular JS value or a promise
-        */
+        **/
         resolve: function (value) {
             if (this._status === 'pending') {
                 this._status = 'accepted';
@@ -477,39 +478,30 @@ http://yuilibrary.com/license/
         @private
         **/
         _unwrap: function (value) {
-            var self = this,
-                unwrapped = false,
-                then;
+            var self = this;
 
-            if (!value || (typeof value !== 'object' &&
-                    typeof value !== 'function')) {
-                self.fulfill(value);
-                return;
-            }
+            if (value && (typeof value == 'object')) {
+                try {
 
-            try {
-                then = value.then;
+                    if (typeof value.then === 'function') {
+                        value.then(function (v) {
+                            self._unwrap(v);
 
-                if (typeof then === 'function') {
-                    then.call(value, function (value) {
-                        if (!unwrapped) {
-                            unwrapped = true;
-                            self._unwrap(value);
-                        }
-                    }, function (reason) {
-                        if (!unwrapped) {
-                            unwrapped = true;
-                            self.reject(reason);
-                        }
-                    });
-                } else {
-                    self.fulfill(value);
-                }
-            } catch (e) {
-                if (!unwrapped) {
+                        }).catch(function (e) {
+                            self.reject(e);
+
+                        });
+                    } else {
+                        self.fulfill(value);
+                    }
+                } catch (e) {
                     self.reject(e);
                 }
+            } else{
+                self.fulfill(value);
             }
+
+
         },
 
         /**
@@ -524,17 +516,23 @@ http://yuilibrary.com/license/
                     resolves unsuccessfully
         **/
         _addCallbacks: function (callback, errback) {
-            var callbackList = this._callbacks,
-                errbackList = this._errbacks;
+            var callbackList = this._callbacks;
+            var errbackList = this._errbacks;
 
             // Because the callback and errback are represented by a Resolver, it
             // must be fulfilled or rejected to propagate through the then() chain.
             // The same logic applies to resolve() and reject() for fulfillment.
             if (callbackList) {
                 callbackList.push(callback);
+                if(callbackList.length > 1){
+                    throw new Error('callbackList.length > 1');
+                }
             }
             if (errbackList) {
                 errbackList.push(errback);
+                if(errbackList.length > 1){
+                    throw new Error('errbackList.length > 1');
+                }
             }
 
             switch (this._status) {
